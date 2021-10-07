@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.9;
+pragma solidity ^0.5.0;
 
 library SafeMath {
     function sub(uint256 a, uint256 b) internal pure returns (uint256) {
@@ -36,6 +36,12 @@ contract AdExToken {
     uint256 private startDate;
     uint256 private constant startDayEndDayDiff = 30;
     
+    uint256 private tokenSupply = 80000000;
+    uint256 private bountySupply = 2000000;
+    uint256 private discoverySupply = 2000000;
+    uint256 private teamSupply = 10000000;
+    uint256 private advisorsSupply = 6000000;
+    
     address private master;
 
     mapping(address => uint256) public balances;
@@ -47,7 +53,7 @@ contract AdExToken {
     mapping(address => uint256) teamSupplyAllowance;
     mapping(address => uint256) advisorsSupplyAllowance;
 
-    constructor() {
+    constructor() public{
         balances[msg.sender] = totalSupply_;
         startDate = block.timestamp;
         master = msg.sender;
@@ -125,7 +131,11 @@ contract AdExToken {
         return (getCurrentTime().sub(startDate)).div(60).div(60).div(24);
     }
     
-    function getBonusTokens(uint256 _amount) public view returns (uint256){
+    function convertEthToAdx(uint256 _amount)public pure returns (uint256){
+        return _amount.div(10 ** 18).mul(900);
+    }
+    
+    function getBonusTokens(uint256 _amount) private view returns (uint256){
         uint256 diff = getDayDifference();
         uint256 bonus = _amount;
         if (diff == 0){
@@ -136,10 +146,10 @@ contract AdExToken {
         return bonus;
     }
     
-    function buyADX(uint256 numTokens) public payable daylimit returns(bool){
-        require(msg.value >= 0);
+    function buyADX() public payable daylimit returns(bool){
+        require(msg.value >= 10**decimals);
         require(address(this).balance.div(10**decimals) <= hardCap);
-        uint256 receivedTokens = getBonusTokens(numTokens); 
+        uint256 receivedTokens = getBonusTokens(convertEthToAdx(msg.value)); 
         addTokenSupplyAllowance(msg.sender, receivedTokens);
         transferFromTokenSupply(msg.sender, receivedTokens);
         return true;
@@ -170,8 +180,8 @@ contract AdExToken {
     // Spend tokens for different allocations(Only if msg.sender has allowance)
     function transferFromTokenSupply(address _to, uint256 _amount) private returns (bool){
         require(tokenSupplyAllowance[_to] >= _amount);
-        require(tokenSupply_ >= _amount);
-        tokenSupply_ = tokenSupply_.sub(_amount);
+        require(tokenSupply >= _amount);
+        tokenSupply = tokenSupply.sub(_amount);
 		balances[_to] = balances[_to].add(_amount);
 		tokenSupplyAllowance[_to] = tokenSupplyAllowance[_to].sub(_amount);
 		emit Transfer(address(this), _to, _amount);
